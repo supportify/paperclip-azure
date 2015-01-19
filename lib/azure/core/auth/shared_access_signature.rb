@@ -1,6 +1,7 @@
 # Adapted from the SharedAccessSignature class found in the Azure 
 # Extensions project by David Michael located at https://github.com/dmichael/azure-contrib
 
+require 'azure'
 require 'hashie/dash'
 require 'addressable/uri'
 
@@ -71,7 +72,7 @@ module Azure
           string_to_sign << options[:canonicalized_resource]
           string_to_sign << options[:identifier]
 
-          Azure::Core::Auth::Signer.new(options[:access_key]).sign(string_to_sign.join("\n").force_encoding("UTF-8"))
+          ::Azure::Core::Auth::Signer.new(options[:access_key]).sign(string_to_sign.join("\n").force_encoding("UTF-8"))
         end
 
         def sign
