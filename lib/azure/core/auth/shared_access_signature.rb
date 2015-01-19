@@ -1,7 +1,6 @@
 # Adapted from the SharedAccessSignature class found in the Azure 
 # Extensions project by David Michael located at https://github.com/dmichael/azure-contrib
 
-require 'azure'
 require 'hashie/dash'
 require 'addressable/uri'
 
