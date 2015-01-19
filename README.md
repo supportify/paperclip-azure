@@ -41,7 +41,7 @@ Or, at the level of the model such as in the following example:
 
 In the even that are using a Blob that has been configured for Private access, you will need to use the Shared Access Signature functionality of Azure.  This functionality has been baked in to the `Attachment#expiring_url` method. Simply specify a time and a style and you will get a proper URL as follows:
 
-  object.attachment.expiring_url(30.minutes.since, :thumb)
+    object.attachment.expiring_url(30.minutes.since, :thumb)
 
 For more information about Azure Shared Access Signatures, please refer to [here](http://azure.microsoft.com/en-us/documentation/articles/storage-dotnet-shared-access-signature-part-1/).
 
