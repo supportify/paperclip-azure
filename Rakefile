@@ -17,10 +17,10 @@ Jeweler::Tasks.new do |gem|
   gem.name = "paperclip-azure"
   gem.homepage = "http://github.com/jordanyaker/paperclip-azure"
   gem.license = "MIT"
-  gem.summary = %Q{An}
-  gem.description = %Q{An}
-  gem.email = "jordan.yaker@supportify.io"
-  gem.authors = ["Jordan"]
+  gem.summary = %Q{An Azure Blob Storage implementation for Paperclip.}
+  gem.description = %Q{An Azure Blob Storage implementation for Paperclip.}
+  gem.email = "help@supportify.io"
+  gem.authors = ["Jordan Yaker"]
   # dependencies defined in Gemfile
 end
 Jeweler::RubygemsDotOrgTasks.new

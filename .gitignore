@@ -47,3 +47,6 @@ pkg
 
 # For rubinius:
 #*.rbc
+
+# For OS X
+.DS_Store
