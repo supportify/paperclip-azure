@@ -15,12 +15,12 @@ require 'jeweler'
 Jeweler::Tasks.new do |gem|
   # gem is a Gem::Specification... see http://guides.rubygems.org/specification-reference/ for more options
   gem.name = "paperclip-azure"
-  gem.homepage = "http://github.com/jordanyaker/paperclip-azure"
+  gem.homepage = "http://github.com/supportify/paperclip-azure"
   gem.license = "MIT"
   gem.summary = %Q{An Azure Blob Storage implementation for Paperclip.}
   gem.description = %Q{An Azure Blob Storage implementation for Paperclip.}
   gem.email = "help@supportify.io"
-  gem.authors = ["Jordan Yaker"]
+  gem.authors = ["Jordan Yaker", "Supportify, Inc."]
   # dependencies defined in Gemfile
 end
 Jeweler::RubygemsDotOrgTasks.new
