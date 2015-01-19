@@ -5,16 +5,16 @@
 
 Gem::Specification.new do |s|
   s.name = "paperclip-azure"
-  s.version = "0.2.1"
+  s.version = "0.2.2"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
-  s.authors = ["Jordan Yaker"]
+  s.authors = ["Jordan Yaker", "Supportify, Inc."]
   s.date = "2015-01-19"
   s.description = "An Azure Blob Storage implementation for Paperclip."
   s.email = "help@supportify.io"
   s.extra_rdoc_files = [
     "LICENSE.txt",
-    "README.rdoc"
+    "README.md"
   ]
   s.files = [
     ".document",
@@ -22,7 +22,7 @@ Gem::Specification.new do |s|
     "Gemfile",
     "Gemfile.lock",
     "LICENSE.txt",
-    "README.rdoc",
+    "README.md",
     "Rakefile",
     "VERSION",
     "lib/azure/core/auth/shared_access_signature.rb",
@@ -31,7 +31,7 @@ Gem::Specification.new do |s|
     "paperclip-azure.gemspec",
     "spec/spec_helper.rb"
   ]
-  s.homepage = "http://github.com/jordanyaker/paperclip-azure"
+  s.homepage = "http://github.com/supportify/paperclip-azure"
   s.licenses = ["MIT"]
   s.require_paths = ["lib"]
   s.rubygems_version = "2.0.6"
