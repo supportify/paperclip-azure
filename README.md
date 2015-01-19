@@ -58,6 +58,6 @@ For more information about Azure Shared Access Signatures, please refer to [here
 
 ## Copyright
 
-Copyright (c) 2015 Jordan. See [LICENSE](LICENSE.txt) for
+Copyright (c) 2015. See [LICENSE](LICENSE.txt) for
 further details.
 
