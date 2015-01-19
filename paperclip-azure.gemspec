@@ -20,11 +20,16 @@ Gem::Specification.new do |s|
     ".document",
     ".rspec",
     "Gemfile",
+    "Gemfile.lock",
     "LICENSE.txt",
     "README.rdoc",
     "Rakefile",
     "VERSION",
-    "spec/paperclip-azure_spec.rb",
+    "lib/azure/blob/blob_service.rb",
+    "lib/azure/core/auth/shared_access_signature.rb",
+    "lib/paperclip-azure.rb",
+    "lib/paperclip/storage/azure.rb",
+    "paperclip-azure.gemspec",
     "spec/spec_helper.rb"
   ]
   s.homepage = "http://github.com/jordanyaker/paperclip-azure"
