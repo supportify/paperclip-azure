@@ -86,6 +86,11 @@ module Paperclip
         end
       end
 
+      def auto_connect_duration
+        @auto_connect_duration ||= @options[:auto_connect_duration] || azure_credentials[:auto_connect_duration] || 10
+        @auto_connect_duration
+      end
+
       def azure_credentials
         @azure_credentials ||= parse_credentials(@options[:azure_credentials])
       end
@@ -135,7 +140,7 @@ module Paperclip
       end
       
       def azure_container
-        @azure_container ||= azure_interface.get_container_properties container_name
+        @azure_container ||= with_azure_error_handling { azure_interface.get_container_properties container_name }
       end
 
       def azure_object(style_name = default_style)
@@ -162,7 +167,7 @@ module Paperclip
       end
 
       def create_container
-        azure_interface.create_container container_name
+        with_azure_error_handling { azure_interface.create_container container_name }
       end
 
       def flush_writes #:nodoc:
@@ -191,19 +196,21 @@ module Paperclip
       end
 
       def save_blob(container_name, storage_path, file)
-        if file.size < 64.megabytes
-          azure_interface.create_block_blob container_name, storage_path, file.read
-        else 
-          blocks = []; count = 0
-          while data = file.read(4.megabytes)
-            block_id = "block_#{(count += 1).to_s.rjust(5, '0')}"
-            
-            azure_interface.create_blob_block container_name, storage_path, block_id, data
+        with_azure_error_handling do
+          if file.size < 64.megabytes
+            azure_interface.create_block_blob container_name, storage_path, file.read
+          else 
+            blocks = []; count = 0
+            while data = file.read(4.megabytes)
+              block_id = "block_#{(count += 1).to_s.rjust(5, '0')}"
+              
+              azure_interface.create_blob_block container_name, storage_path, block_id, data
 
-            blocks << [block_id]
+              blocks << [block_id]
+            end
+
+            azure_interface.commit_blob_blocks container_name, storage_path, blocks
           end
-
-          azure_interface.commit_blob_blocks container_name, storage_path, blocks
         end
       end
 
@@ -211,7 +218,8 @@ module Paperclip
         @queued_for_delete.each do |path|
           begin
             log("deleting #{path}")
-            azure_interface.delete_blob container_name, path
+
+            with_azure_error_handling { azure_interface.delete_blob container_name, path }
           rescue ::Azure::Core::Http::HTTPError => e
             raise unless e.status_code == 404
           end
@@ -222,10 +230,12 @@ module Paperclip
       def copy_to_local_file(style, local_dest_path)
         log("copying #{path(style)} to local file #{local_dest_path}")
         
-        blob, content = azure_interface.get_blob(container_name, path(style).sub(%r{\A/},''))
+        with_azure_error_handling do
+          blob, content = azure_interface.get_blob(container_name, path(style).sub(%r{\A/},''))
 
-        ::File.open(local_dest_path, 'wb') do |local_file|
-          local_file.write(content)
+          ::File.open(local_dest_path, 'wb') do |local_file|
+            local_file.write(content)
+          end
         end
       rescue ::Azure::Core::Http::HTTPError => e
         raise unless e.status_code == 404
@@ -248,6 +258,22 @@ module Paperclip
           {}
         else
           raise ArgumentError, "Credentials given are not a path, file, proc, or hash."
+        end
+      end
+
+      def with_azure_error_handling
+        count = 0
+
+        begin
+          yield
+        rescue Exception => e
+          if count <= auto_connect_duration
+            sleep 2** count
+            count += 1
+            retry
+          end
+
+          raise
         end
       end
     end
