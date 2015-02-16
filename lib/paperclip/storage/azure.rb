@@ -129,22 +129,28 @@ module Paperclip
 
           require 'azure/core/http/retry_policy' # For Some Reason, All Other Loading Locations Fail          
           service.filters << ::Azure::Core::Http::RetryPolicy.new do |response, retry_data|
-            status_code = response.status_code == 0 ? 500 : response.status_code
-            @retry_count ||= 0
+            status_code = case 
+                          when !response.nil?
+                            response.status_code
+                          when !retry_data[:error].nil?
+                            retry_data[:error].status_code
+                          else
+                            500
+                          end
+            status_code = 500 if status_code == 0 
+            retry_data[:count] ||= 0
             
-            if (status_code >= 300 && status_code < 500 && status_code != 408) ||
+            unless (status_code >= 300 && status_code < 500 && status_code != 408) ||
                 status_code == 501 ||
                 status_code == 505 ||
-                response[:error].description == 'Blob type of the blob reference doesn\'t match blob type of the blob.' ||
-                @retry_count >= 5
-              @retry_count = 0
-            else
-              @retry_count += 1
+                retry_data[:error].description == 'Blob type of the blob reference doesn\'t match blob type of the blob.' ||
+                retry_data[:count] >= 5
+              retry_data[:count] += 1
           
-              sleep ((2**@retry_count) - 1) * 5
+              sleep ((2** retry_data[:count]) - 1) * 5
             end
 
-            @retry_count > 0
+            retry_data[:count] > 0
           end
 
           instances[options] = service
