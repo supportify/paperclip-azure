@@ -54,7 +54,6 @@ module Paperclip
       def self.extended base
         begin
           require 'azure'
-          require 'azure/core/http/retry_policy'
         rescue LoadError => e
           e.message << " (You may need to install the azure SDK gem)"
           raise e
@@ -128,6 +127,7 @@ module Paperclip
           signer = ::Azure::Core::Auth::SharedKey.new options[:storage_account_name], options[:access_key]
           service = ::Azure::BlobService.new(signer, options[:storage_account_name])
 
+          require 'azure/core/http/retry_policy' # For Some Reason, All Other Loading Locations Fail          
           service.filters << ::Azure::Core::Http::RetryPolicy.new do |response, retry_data|
             status_code = response.status_code == 0 ? 500 : response.status_code
             @retry_count ||= 0
