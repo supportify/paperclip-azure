@@ -1,3 +1,5 @@
+require 'azure/core/http/retry_policy'
+
 module Paperclip
   module Storage
     # Azure's container file hosting service is a scalable, easy place to store files for
