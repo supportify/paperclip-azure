@@ -1,5 +1,3 @@
-require 'azure/core/http/retry_policy'
-
 module Paperclip
   module Storage
     # Azure's container file hosting service is a scalable, easy place to store files for
@@ -56,6 +54,7 @@ module Paperclip
       def self.extended base
         begin
           require 'azure'
+          require 'azure/core/http/retry_policy'
         rescue LoadError => e
           e.message << " (You may need to install the azure SDK gem)"
           raise e
