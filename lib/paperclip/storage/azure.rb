@@ -125,7 +125,28 @@ module Paperclip
         
         unless instances[options]
           signer = ::Azure::Core::Auth::SharedKey.new options[:storage_account_name], options[:access_key]
-          instances[options] = ::Azure::BlobService.new(signer, options[:storage_account_name])
+          service = ::Azure::BlobService.new(signer, options[:storage_account_name])
+
+          service.filters << ::Azure::Core::Http::RetryPolicy.new do |response, retry_data|
+            status_code = response.status_code == 0 ? 500 : response.status_code
+            @retry_count ||= 0
+            
+            if (status_code >= 300 && status_code < 500 && status_code != 408) ||
+                status_code == 501 ||
+                status_code == 505 ||
+                response[:error].description == 'Blob type of the blob reference doesn\'t match blob type of the blob.' ||
+                @retry_count >= 5
+              @retry_count = 0
+            else
+              @retry_count += 1
+          
+              sleep ((2**@retry_count) - 1) * 5
+            end
+
+            @retry_count > 0
+          end
+
+          instances[options] = service
         end
 
         instances[options] 
@@ -140,7 +161,7 @@ module Paperclip
       end
       
       def azure_container
-        @azure_container ||= with_azure_error_handling { azure_interface.get_container_properties container_name }
+        @azure_container ||= azure_interface.get_container_properties container_name
       end
 
       def azure_object(style_name = default_style)
@@ -167,7 +188,7 @@ module Paperclip
       end
 
       def create_container
-        with_azure_error_handling { azure_interface.create_container container_name }
+        azure_interface.create_container container_name
       end
 
       def flush_writes #:nodoc:
@@ -196,21 +217,19 @@ module Paperclip
       end
 
       def save_blob(container_name, storage_path, file)
-        with_azure_error_handling do
-          if file.size < 64.megabytes
-            azure_interface.create_block_blob container_name, storage_path, file.read
-          else 
-            blocks = []; count = 0
-            while data = file.read(4.megabytes)
-              block_id = "block_#{(count += 1).to_s.rjust(5, '0')}"
-              
-              azure_interface.create_blob_block container_name, storage_path, block_id, data
+        if file.size < 64.megabytes
+          azure_interface.create_block_blob container_name, storage_path, file.read
+        else 
+          blocks = []; count = 0
+          while data = file.read(4.megabytes)
+            block_id = "block_#{(count += 1).to_s.rjust(5, '0')}"
+            
+            azure_interface.create_blob_block container_name, storage_path, block_id, data
 
-              blocks << [block_id]
-            end
-
-            azure_interface.commit_blob_blocks container_name, storage_path, blocks
+            blocks << [block_id]
           end
+
+          azure_interface.commit_blob_blocks container_name, storage_path, blocks
         end
       end
 
@@ -219,7 +238,7 @@ module Paperclip
           begin
             log("deleting #{path}")
 
-            with_azure_error_handling { azure_interface.delete_blob container_name, path }
+            azure_interface.delete_blob container_name, path
           rescue ::Azure::Core::Http::HTTPError => e
             raise unless e.status_code == 404
           end
@@ -230,12 +249,10 @@ module Paperclip
       def copy_to_local_file(style, local_dest_path)
         log("copying #{path(style)} to local file #{local_dest_path}")
         
-        with_azure_error_handling do
-          blob, content = azure_interface.get_blob(container_name, path(style).sub(%r{\A/},''))
+        blob, content = azure_interface.get_blob(container_name, path(style).sub(%r{\A/},''))
 
-          ::File.open(local_dest_path, 'wb') do |local_file|
-            local_file.write(content)
-          end
+        ::File.open(local_dest_path, 'wb') do |local_file|
+          local_file.write(content)
         end
       rescue ::Azure::Core::Http::HTTPError => e
         raise unless e.status_code == 404
@@ -258,22 +275,6 @@ module Paperclip
           {}
         else
           raise ArgumentError, "Credentials given are not a path, file, proc, or hash."
-        end
-      end
-
-      def with_azure_error_handling
-        count = 0
-
-        begin
-          yield
-        rescue Exception => e
-          if count <= auto_connect_duration
-            sleep 2** count
-            count += 1
-            retry
-          end
-
-          raise
         end
       end
     end
