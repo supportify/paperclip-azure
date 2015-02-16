@@ -149,7 +149,7 @@ module Paperclip
             else
               retry_data[:count] += 1
           
-              sleep ((2** retry_data[:count]) - 1) * 5
+              sleep (retry_data[:count] - 1) * 5
             end
 
             retry_data[:count] > 0
