@@ -143,7 +143,7 @@ module Paperclip
             if (status_code >= 300 && status_code < 500 && status_code != 408) ||
                 status_code == 501 ||
                 status_code == 505 ||
-                retry_data[:error].description == 'Blob type of the blob reference doesn\'t match blob type of the blob.' ||
+                (!retry_data[:error].nil? && retry_data[:error].description == 'Blob type of the blob reference doesn\'t match blob type of the blob.') ||
                 retry_data[:count] >= 5
               retry_data[:count] = 0
             else
