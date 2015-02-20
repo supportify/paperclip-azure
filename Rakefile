@@ -21,6 +21,7 @@ Jeweler::Tasks.new do |gem|
   gem.description = %Q{An Azure Blob Storage implementation for Paperclip.}
   gem.email = "help@supportify.io"
   gem.authors = ["Jordan Yaker", "Supportify, Inc."]
+  gem.files = Dir.glob('lib/**/*.rb') 
   # dependencies defined in Gemfile
 end
 Jeweler::RubygemsDotOrgTasks.new
