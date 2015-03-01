@@ -187,7 +187,7 @@ module Paperclip
 
       def exists?(style = default_style)
         if original_filename
-          azure_object(style).nil?
+          !azure_object(style).nil?
         else
           false
         end
