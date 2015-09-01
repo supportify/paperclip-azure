@@ -6,7 +6,7 @@ Paperclip-Azure is a [Paperclip](https://github.com/thoughtbot/paperclip) storag
 
 Add this line to your application's Gemfile after the Paperclip gem:
 
-    gem 'paperclip-optimizer'
+    gem 'paperclip-azure'
 
 And then execute:
 
