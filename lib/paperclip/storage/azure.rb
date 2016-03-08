@@ -206,8 +206,13 @@ module Paperclip
           retries = 0
           begin
             log("saving #{path(style)}")
+
+            write_options = {
+              content_type: file.content_type,
+            }
+
             if azure_container
-              save_blob container_name, path(style).sub(%r{\A/},''), file
+              save_blob container_name, path(style).sub(%r{\A/},''), file, write_options
             end
           rescue ::Azure::Core::Http::HTTPError => e
             if e.status_code == 404
@@ -226,14 +231,15 @@ module Paperclip
         @queued_for_write = {}
       end
 
-      def save_blob(container_name, storage_path, file)
+      def save_blob(container_name, storage_path, file, write_options)
+
         if file.size < 64.megabytes
-          azure_interface.create_block_blob container_name, storage_path, file.read
-        else 
+          azure_interface.create_block_blob container_name, storage_path, file.read, write_options
+        else
           blocks = []; count = 0
           while data = file.read(4.megabytes)
             block_id = "block_#{(count += 1).to_s.rjust(5, '0')}"
-            
+
             azure_interface.create_blob_block container_name, storage_path, block_id, data
 
             blocks << [block_id]
