@@ -75,7 +75,7 @@ module Paperclip
               resource:    'b',
               permissions: 'r',
               start:       5.minutes.ago.utc.iso8601,
-              expiry:      time.since.utc.iso8601,
+              expiry:      time.since(0).utc.iso8601,
               access_key:  azure_credentials[:access_key]
             },
             azure_account_name
