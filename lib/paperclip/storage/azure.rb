@@ -1,3 +1,5 @@
+require File.join(File.dirname(__FILE__), "azure_region")
+
 module Paperclip
   module Storage
     # Azure's container file hosting service is a scalable, easy place to store files for
@@ -49,6 +51,7 @@ module Paperclip
     #   to interpolate. Keys should be unique, like filenames, and despite the fact that
     #   Azure (strictly speaking) does not support directories, you can still use a / to
     #   separate parts of your file name.
+    # * +region+: Depending on the region, different base urls are used. Supported values :global, :de
 
     module Azure
       def self.extended base
@@ -122,14 +125,14 @@ module Paperclip
 
       def obtain_azure_instance_for(options)
         instances = (Thread.current[:paperclip_azure_instances] ||= {})
-        
+
         unless instances[options]
           signer = ::Azure::Core::Auth::SharedKey.new options[:storage_account_name], options[:access_key]
           service = ::Azure::BlobService.new(signer, options[:storage_account_name])
 
-          require 'azure/core/http/retry_policy' # For Some Reason, All Other Loading Locations Fail          
+          require 'azure/core/http/retry_policy' # For Some Reason, All Other Loading Locations Fail
           service.filters << ::Azure::Core::Http::RetryPolicy.new do |response, retry_data|
-            status_code = case 
+            status_code = case
                           when !response.nil?
                             response.status_code
                           when !retry_data[:error].nil?
@@ -137,9 +140,9 @@ module Paperclip
                           else
                             500
                           end
-            status_code = 500 if status_code == 0 
+            status_code = 500 if status_code == 0
             retry_data[:count] ||= 0
-            
+
             if  (!response.nil? && response.success? && retry_data[:error].nil?) ||
                 (status_code >= 300 && status_code < 500 && status_code != 408) ||
                 status_code == 501 ||
@@ -149,7 +152,7 @@ module Paperclip
               retry_data[:count] = 0
             else
               retry_data[:count] += 1
-          
+
               sleep (retry_data[:count] - 1) * 5
             end
 
@@ -159,7 +162,7 @@ module Paperclip
           instances[options] = service
         end
 
-        instances[options] 
+        instances[options]
       end
 
       def azure_uri(style_name = default_style)
@@ -167,9 +170,9 @@ module Paperclip
       end
 
       def azure_base_url
-        "https://#{azure_account_name}.blob.core.windows.net"
+        AzureRegion.url_for azure_account_name
       end
-      
+
       def azure_container
         @azure_container ||= azure_interface.get_container_properties container_name
       end
@@ -218,7 +221,7 @@ module Paperclip
             if e.status_code == 404
               create_container
               retry
-            else 
+            else
               raise
             end
           ensure
@@ -264,7 +267,7 @@ module Paperclip
 
       def copy_to_local_file(style, local_dest_path)
         log("copying #{path(style)} to local file #{local_dest_path}")
-        
+
         blob, content = azure_interface.get_blob(container_name, path(style).sub(%r{\A/},''))
 
         ::File.open(local_dest_path, 'wb') do |local_file|
@@ -272,7 +275,7 @@ module Paperclip
         end
       rescue ::Azure::Core::Http::HTTPError => e
         raise unless e.status_code == 404
-        
+
         warn("#{e} - cannot copy #{path(style)} to local file #{local_dest_path}")
         false
       end
