@@ -1,4 +1,4 @@
-require File.join(File.dirname(__FILE__), "azure_region")
+require 'paperclip/storage/azure/environment'
 
 module Paperclip
   module Storage
@@ -170,7 +170,7 @@ module Paperclip
       end
 
       def azure_base_url
-        AzureRegion.url_for azure_account_name
+        Environment.url_for azure_account_name, @azure_credentials[:region]
       end
 
       def azure_container

@@ -1,44 +1,24 @@
-# encoding: utf-8
+# -*- ruby -*-
 
-require 'rubygems'
-require 'bundler'
-begin
-  Bundler.setup(:default, :development)
-rescue Bundler::BundlerError => e
-  $stderr.puts e.message
-  $stderr.puts "Run `bundle install` to install missing gems"
-  exit e.status_code
-end
-require 'rake'
+require "rubygems"
+require "hoe"
 
-require 'jeweler'
-Jeweler::Tasks.new do |gem|
-  # gem is a Gem::Specification... see http://guides.rubygems.org/specification-reference/ for more options
-  gem.name = "paperclip-azure"
-  gem.homepage = "http://github.com/supportify/paperclip-azure"
-  gem.license = "MIT"
-  gem.summary = %Q{An Azure Blob Storage implementation for Paperclip.}
-  gem.description = %Q{An Azure Blob Storage implementation for Paperclip.}
-  gem.email = "help@supportify.io"
-  gem.authors = ["Jordan Yaker", "Supportify, Inc."]
-  gem.files = Dir.glob('lib/**/*.rb') 
-  # dependencies defined in Gemfile
-end
-Jeweler::RubygemsDotOrgTasks.new
+Hoe.plugin :bundler
+Hoe.plugin :debug
+Hoe.plugin :git
+Hoe.plugin :gemspec
+Hoe.plugin :rubygems
 
-require 'rspec/core'
-require 'rspec/core/rake_task'
-RSpec::Core::RakeTask.new(:spec) do |spec|
-  spec.pattern = FileList['spec/**/*_spec.rb']
+Hoe.spec "paperclip-azure" do
+  developer("hireross.com", "help@hireross.com")
+  license "MIT" # this should match the license in the README
+
+  extra_deps << ['azure', '~> 0.7']
+  extra_deps << ['hashie', '~> 3.5']
+  extra_deps << ['addressable', '~> 2.5']
+
+  extra_dev_deps << ['rspec', '~> 3.0']
+  extra_dev_deps << ['simplecov', '~> 0.14']
 end
 
-desc "Code coverage detail"
-task :simplecov do
-  ENV['COVERAGE'] = "true"
-  Rake::Task['spec'].execute
-end
-
-task :default => :spec
-
-require 'yard'
-YARD::Rake::YardocTask.new
+# vim: syntax=ruby
