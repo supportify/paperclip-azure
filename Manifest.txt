@@ -3,6 +3,10 @@ History.txt
 Manifest.txt
 README.txt
 Rakefile
+lib/azure/core/auth/shared_access_signature.rb
+lib/paperclip/storage/azure/environment.rb
+lib/paperclip/storage/azure.rb
 lib/paperclip/azure.rb
 lib/paperclip-azure.rb
-test/test_paperclip/test_azure.rb
+spec/paperclip/storage/azure/environment_spec.rb
+spec/spec_helper.rb
