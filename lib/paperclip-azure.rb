@@ -8,7 +8,7 @@ module Azure
     BlobService.class_eval do
       def initialize(signer=Core::Auth::SharedKey.new, account_name=Azure.config.storage_account_name)
         super(signer, account_name)
-        @host = "http://#{account_name}.blob.core.windows.net"
+        @host = Paperclip::Storage::AzureRegion.url_for account_name
       end
     end
   end
