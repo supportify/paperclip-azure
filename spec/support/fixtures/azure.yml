@@ -1,0 +1,8 @@
+development:
+  storage_access_key: 54321
+production:
+  storage_access_key: 12345
+test:
+  container: <%= ENV['AZURE_CONTAINER'] %>
+  storage_account_name: <%= ENV['AZURE_STORAGE_ACCOUNT'] %>
+  storage_access_key: <%= ENV['AZURE_STORAGE_ACCESS_KEY'] %>

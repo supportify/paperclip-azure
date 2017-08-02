@@ -1,3 +1,4 @@
+require 'azure/storage'
 require 'paperclip/storage/azure/environment'
 
 module Paperclip
@@ -9,21 +10,21 @@ module Paperclip
     #   gem 'azure'
     # There are a few Azure-specific options for has_attached_file:
     # * +azure_credentials+: Takes a path, a File, a Hash or a Proc. The path (or File) must point
-    #   to a YAML file containing the +access_key+ and +storage_account+ that azure
+    #   to a YAML file containing the +storage_access_key+ and +storage_account_name+ that azure
     #   gives you. You can 'environment-space' this just like you do to your
     #   database.yml file, so different environments can use different accounts:
     #     development:
     #       storage_account_name: foo
-    #       access_key: 123...
+    #       storage_access_key: 123...
     #     test:
     #       storage_account_name: foo
-    #       access_key: abc...
+    #       storage_access_key: abc...
     #     production:
     #       storage_account_name: foo
-    #       access_key: 456...
+    #       storage_access_key: 456...
     #   This is not required, however, and the file may simply look like this:
     #     storage_account_name: foo
-    #     access_key: 456...
+    #     storage_access_key: 456...
     #   In which case, those access keys will be used in all environments. You can also
     #   put your container name in this file, instead of adding it to the code directly.
     #   This is useful when you want the same account but a different container for
@@ -37,7 +38,7 @@ module Paperclip
     #                         :azure_credentials => Proc.new{|a| a.instance.azure_credentials }
     #
     #       def azure_credentials
-    #         { :container => "xxx", :storage_account_name => "xxx", :access_key => "xxx" }
+    #         { :container => "xxx", :storage_account_name => "xxx", :storage_access_key => "xxx" }
     #       end
     #     end
     #
@@ -64,26 +65,35 @@ module Paperclip
 
         base.instance_eval do
           @azure_options     = @options[:azure_options]     || {}
+
+          unless @options[:url].to_s.match(/\A:azure.*url\z/) || @options[:url] == ":asset_host".freeze
+            @options[:path] = path_option.gsub(/:url/, @options[:url]).sub(/\A:rails_root\/public\/system/, "".freeze)
+            @options[:url]  = ":azure_path_url".freeze
+          end
+          @options[:url] = @options[:url].inspect if @options[:url].is_a?(Symbol)
+
+          @http_proxy = @options[:http_proxy] || nil
         end
 
         Paperclip.interpolates(:azure_path_url) do |attachment, style|
           attachment.azure_uri(style)
         end unless Paperclip::Interpolations.respond_to? :azure_path_url
+        Paperclip.interpolates(:asset_host) do |attachment, style|
+          "#{attachment.path(style).sub(%r{\A/}, "".freeze)}"
+        end unless Paperclip::Interpolations.respond_to? :asset_host
       end
 
       def expiring_url(time = 3600, style_name = default_style)
         if path(style_name)
-          uri = azure_uri(style_name)
-          signer = ::Azure::Core::Auth::SharedAccessSignature.new(uri, {
-              resource:    'b',
-              permissions: 'r',
-              start:       5.minutes.ago.utc.iso8601,
-              expiry:      time.since.utc.iso8601,
-              access_key:  azure_credentials[:access_key]
-            },
-            azure_account_name
-          )
-          signer.sign
+          uri = URI azure_uri(style_name)
+          generator = ::Azure::Storage::Core::Auth::SharedAccessSignature.new azure_account_name,
+                                                                              azure_credentials[:storage_access_key]
+
+          generator.signed_uri uri, false, service:      'b',
+                                           resource:     'b',
+                                           permissions:  'r',
+                                           start:        (Time.now - (5 * 60)).utc.iso8601,
+                                           expiry:       (Time.now + time).utc.iso8601
         else
           url(style_name)
         end
@@ -115,7 +125,7 @@ module Paperclip
         @azure_interface ||= begin
           config = {}
 
-          [:storage_account_name, :access_key, :container].each do |opt|
+          [:storage_account_name, :storage_access_key, :container].each do |opt|
             config[opt] = azure_credentials[opt] if azure_credentials[opt]
           end
 
@@ -123,54 +133,32 @@ module Paperclip
         end
       end
 
-      def obtain_azure_instance_for(options)
-        instances = (Thread.current[:paperclip_azure_instances] ||= {})
+      def azure_storage_client
+        config = {}
 
-        unless instances[options]
-          signer = ::Azure::Core::Auth::SharedKey.new options[:storage_account_name], options[:access_key]
-          service = ::Azure::BlobService.new(signer, options[:storage_account_name])
-
-          require 'azure/core/http/retry_policy' # For Some Reason, All Other Loading Locations Fail
-          service.filters << ::Azure::Core::Http::RetryPolicy.new do |response, retry_data|
-            status_code = case
-                          when !response.nil?
-                            response.status_code
-                          when !retry_data[:error].nil?
-                            retry_data[:error].status_code
-                          else
-                            500
-                          end
-            status_code = 500 if status_code == 0
-            retry_data[:count] ||= 0
-
-            if  (!response.nil? && response.success? && retry_data[:error].nil?) ||
-                (status_code >= 300 && status_code < 500 && status_code != 408) ||
-                status_code == 501 ||
-                status_code == 505 ||
-                (!retry_data[:error].nil? && retry_data[:error].description == 'Blob type of the blob reference doesn\'t match blob type of the blob.') ||
-                retry_data[:count] >= 5
-              retry_data[:count] = 0
-            else
-              retry_data[:count] += 1
-
-              sleep (retry_data[:count] - 1) * 5
-            end
-
-            retry_data[:count] > 0
-          end
-
-          instances[options] = service
+        [:storage_account_name, :storage_access_key].each do |opt|
+          config[opt] = azure_credentials[opt] if azure_credentials[opt]
         end
 
-        instances[options]
+        @azure_storage_client ||= ::Azure::Storage::Client.create config
+      end
+
+      def obtain_azure_instance_for(options)
+        instances = (Thread.current[:paperclip_azure_instances] ||= {})
+        return instances[options] if instance[options]
+
+        service = ::Azure::Storage::Blob::BlobService.new(client: azure_storage_client)
+        service.with_filter ::Azure::Storage::Core::Filter::ExponentialRetryPolicyFilter.new
+
+        instances[options] = service
       end
 
       def azure_uri(style_name = default_style)
-        "#{azure_base_url}/#{container_name}/#{path(style_name).gsub(%r{\A/}, '')}"
+        "https://#{azure_base_url}/#{container_name}/#{path(style_name).gsub(%r{\A/}, '')}"
       end
 
       def azure_base_url
-        Environment.url_for azure_account_name, @azure_credentials[:region]
+        Environment.url_for azure_account_name, azure_credentials[:region]
       end
 
       def azure_container

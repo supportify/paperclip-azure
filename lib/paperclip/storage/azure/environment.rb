@@ -10,8 +10,8 @@ module Paperclip
           usgovt: 'core.usgovcloudapi.net'
         }
 
-        def self.url_for(account_name, region = :global)
-          "#{account_name}.blob.#{ENVIRONMENT_SUFFIX[region]}"
+        def self.url_for(account_name, region = nil)
+          "#{account_name}.blob.#{ENVIRONMENT_SUFFIX[region || :global]}"
         end
       end
     end
