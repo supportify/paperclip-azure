@@ -3,10 +3,36 @@ History.txt
 Manifest.txt
 README.txt
 Rakefile
-lib/azure/core/auth/shared_access_signature.rb
 lib/paperclip/storage/azure/environment.rb
 lib/paperclip/storage/azure.rb
 lib/paperclip/azure.rb
 lib/paperclip-azure.rb
 spec/paperclip/storage/azure/environment_spec.rb
+spec/paperclip/storage/azure_spec.rb
+spec/support/fixtures/12k.png
+spec/support/fixtures/50x50.png
+spec/support/fixtures/5k.png
+spec/support/fixtures/animated
+spec/support/fixtures/animated.gif
+spec/support/fixtures/animated.unknown
+spec/support/fixtures/azure.yml
+spec/support/fixtures/bad.png
+spec/support/fixtures/empty.html
+spec/support/fixtures/empty.xlsx
+spec/support/fixtures/fog.yml
+spec/support/fixtures/rotated.jpg
+spec/support/fixtures/spaced file.jpg
+spec/support/fixtures/spaced file.png
+spec/support/fixtures/text.txt
+spec/support/fixtures/twopage.pdf
+spec/support/fixtures/uppercase.PNG
+spec/support/fake_model.rb
+spec/support/fake_rails.rb
+spec/support/mock_attachment.rb
+spec/support/mock_interpolator.rb
+spec/support/mock_url_generator_builder.rb
+spec/support/model_reconstruction.rb
+spec/support/test_data.rb
+spec/support/version_helper.rb
+spec/database.yml
 spec/spec_helper.rb
