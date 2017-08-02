@@ -6,8 +6,6 @@ module Paperclip
     # Azure's container file hosting service is a scalable, easy place to store files for
     # distribution. You can find out more about it at http://azure.microsoft.com/en-us/services/storage/
     #
-    # To use Paperclip with Azure, include the +azure+ gem in your Gemfile:
-    #   gem 'azure'
     # There are a few Azure-specific options for has_attached_file:
     # * +azure_credentials+: Takes a path, a File, a Hash or a Proc. The path (or File) must point
     #   to a YAML file containing the +storage_access_key+ and +storage_account_name+ that azure

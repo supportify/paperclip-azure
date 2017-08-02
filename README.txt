@@ -18,12 +18,11 @@ Paperclip-Azure is a [Paperclip](https://github.com/thoughtbot/paperclip) storag
 The Azure storage engine has been developed to work as similarly to S3 storage configuration as is possible.  This gem can be configured in a Paperclip initializer or environment file as follows:
 
     Paperclip::Attachment.default_options[:storage] = :azure
-    Paperclip::Attachment.default_options[:url] = ':azure_path_url'
-    Paperclip::Attachment.default_options[:path] = ":class/:attachment/:id/:style/:filename"
-    Paperclip::Attachment.default_options[:storage] = :azure
+    Paperclip::Attachment.default_options[:url]     = ':azure_path_url'
+    Paperclip::Attachment.default_options[:path]    = ':class/:attachment/:id/:style/:filename'
     Paperclip::Attachment.default_options[:azure_credentials] = {
         storage_account_name: ENV['AZURE_STORAGE_ACCOUNT'],
-        access_key:           ENV['AZURE_ACCESS_KEY'],
+        storage_access_key:   ENV['AZURE_STORAGE_ACCESS_KEY'],
         container:            ENV['AZURE_CONTAINER_NAME']
     }
 
@@ -33,9 +32,28 @@ Or, at the level of the model such as in the following example:
                       storage: :azure,
                       azure_credentials: {
                         storage_account_name: ENV['AZURE_STORAGE_ACCOUNT'],
-                        access_key:           ENV['AZURE_ACCESS_KEY'],
+                        storage_access_key:   ENV['AZURE_STORAGE_ACCESS_KEY'],
                         container:            ENV['AZURE_CONTAINER_NAME']
                       }
+
+Additionally, you can also supply credentials using a path or a File that contains the +storage_access_key+ and +storage_account_name+ that Azure gives you. You can 'environment-space' this just like you do to your `database.yml` file, so different environments can use different accounts:
+
+    development:
+      storage_account_name: foo
+      storage_access_key: 123...
+    test:
+      storage_account_name: foo
+      storage_access_key: abc...
+    production:
+      storage_account_name: foo
+      storage_access_key: 456...
+
+This is not required, however, and the file may simply look like this:
+
+    storage_account_name: foo
+    storage_access_key: 456...
+
+In which case, those access keys will be used in all environments. You can also put your container name in this file, instead of adding it to the code directly. This is useful when you want the same account but a different container for development versus production.
 
 === Private Blob Access
 
@@ -51,7 +69,7 @@ Microsoft offers specialized Azure implementations for special circumstances sho
 
     Paperclip::Attachment.default_options[:azure_credentials] = {
         storage_account_name: ENV['AZURE_STORAGE_ACCOUNT'],
-        access_key:           ENV['AZURE_ACCESS_KEY'],
+        storage_access_key:   ENV['AZURE_STORAGE_ACCESS_KEY'],
         container:            ENV['AZURE_CONTAINER_NAME'],
         region:               :de
     }
@@ -62,7 +80,7 @@ Or, in the instance where the credentials are specified at the model level:
                       storage: :azure,
                       azure_credentials: {
                         storage_account_name: ENV['AZURE_STORAGE_ACCOUNT'],
-                        access_key:           ENV['AZURE_ACCESS_KEY'],
+                        storage_access_key:   ENV['AZURE_STORAGE_ACCESS_KEY'],
                         container:            ENV['AZURE_CONTAINER_NAME'],
                         region:               :cn
                       }
