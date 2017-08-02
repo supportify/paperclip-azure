@@ -18,8 +18,6 @@ Paperclip-Azure is a [Paperclip](https://github.com/thoughtbot/paperclip) storag
 The Azure storage engine has been developed to work as similarly to S3 storage configuration as is possible.  This gem can be configured in a Paperclip initializer or environment file as follows:
 
     Paperclip::Attachment.default_options[:storage] = :azure
-    Paperclip::Attachment.default_options[:url]     = ':azure_path_url'
-    Paperclip::Attachment.default_options[:path]    = ':class/:attachment/:id/:style/:filename'
     Paperclip::Attachment.default_options[:azure_credentials] = {
         storage_account_name: ENV['AZURE_STORAGE_ACCOUNT'],
         storage_access_key:   ENV['AZURE_STORAGE_ACCESS_KEY'],
@@ -54,6 +52,7 @@ This is not required, however, and the file may simply look like this:
     storage_access_key: 456...
 
 In which case, those access keys will be used in all environments. You can also put your container name in this file, instead of adding it to the code directly. This is useful when you want the same account but a different container for development versus production.
+
 
 === Private Blob Access
 
