@@ -192,7 +192,6 @@ module Paperclip
 
       def flush_writes #:nodoc:
         @queued_for_write.each do |style, file|
-          retries = 0
           begin
             log("saving #{path(style)}")
 
@@ -221,7 +220,6 @@ module Paperclip
       end
 
       def save_blob(container_name, storage_path, file, write_options)
-
         if file.size < 64.megabytes
           azure_interface.create_block_blob container_name, storage_path, file.read, write_options
         else
@@ -229,7 +227,7 @@ module Paperclip
           while data = file.read(4.megabytes)
             block_id = "block_#{(count += 1).to_s.rjust(5, '0')}"
 
-            azure_interface.create_blob_block container_name, storage_path, block_id, data
+            azure_interface.put_blob_block container_name, storage_path, block_id, data
 
             blocks << [block_id]
           end
@@ -254,7 +252,7 @@ module Paperclip
       def copy_to_local_file(style, local_dest_path)
         log("copying #{path(style)} to local file #{local_dest_path}")
 
-        blob, content = azure_interface.get_blob(container_name, path(style).sub(%r{\A/},''))
+        _, content = azure_interface.get_blob(container_name, path(style).sub(%r{\A/},''))
 
         ::File.open(local_dest_path, 'wb') do |local_file|
           local_file.write(content)
