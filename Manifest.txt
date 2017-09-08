@@ -1,0 +1,9 @@
+.autotest
+History.txt
+Manifest.txt
+README.md
+Rakefile
+lib/paperclip/storage/azure/environment.rb
+lib/paperclip/storage/azure.rb
+lib/paperclip/azure.rb
+lib/paperclip-azure.rb
