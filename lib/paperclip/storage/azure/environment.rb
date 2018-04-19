@@ -11,7 +11,7 @@ module Paperclip
         }
 
         def self.url_for(account_name, region = nil)
-          "#{account_name}.blob.#{ENVIRONMENT_SUFFIX[region || :global]}"
+          "#{account_name}.blob.#{ENVIRONMENT_SUFFIX[(region || :global).to_sym]}"
         end
       end
     end
