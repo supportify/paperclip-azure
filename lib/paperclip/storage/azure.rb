@@ -138,6 +138,8 @@ module Paperclip
           config[opt] = azure_credentials[opt] if azure_credentials[opt]
         end
 
+        config[:storage_blob_host] = "https://#{azure_base_url}"
+
         @azure_storage_client ||= ::Azure::Storage::Client.create config
       end
 
