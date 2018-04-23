@@ -83,15 +83,16 @@ module Paperclip
 
       def expiring_url(time = 3600, style_name = default_style)
         if path(style_name)
-          uri = URI azure_uri(style_name)
+          uri = URI "#{container_name}/#{path(style_name).gsub(%r{\A/}, '')}"
           generator = ::Azure::Storage::Core::Auth::SharedAccessSignature.new azure_account_name,
-                                                                              azure_credentials[:storage_access_key]
+            azure_storage_client.storage_access_key
 
-          generator.signed_uri uri, false, service:      'b',
+          uri = generator.signed_uri uri, false, service:      'b',
                                            resource:     'b',
                                            permissions:  'r',
                                            start:        (Time.now - (5 * 60)).utc.iso8601,
                                            expiry:       (Time.now + time).utc.iso8601
+          azure_interface.generate_uri(uri.path, CGI::parse(uri.query || "")).to_s
         else
           url(style_name)
         end
@@ -107,10 +108,7 @@ module Paperclip
       end
 
       def azure_account_name
-        account_name = @options[:azure_storage_account_name] || azure_credentials[:storage_account_name]
-        account_name = account_name.call(self) if account_name.is_a?(Proc)
-
-        account_name
+        azure_storage_client.storage_account_name
       end
 
       def container_name
@@ -132,15 +130,17 @@ module Paperclip
       end
 
       def azure_storage_client
-        config = {}
+        @azure_storage_client ||= begin
+          config = {}
 
-        [:storage_account_name, :storage_access_key].each do |opt|
-          config[opt] = azure_credentials[opt] if azure_credentials[opt]
+          [:storage_account_name, :storage_access_key, :use_development_storage].each do |opt|
+            config[opt] = azure_credentials[opt] if azure_credentials[opt]
+          end
+
+          config[:storage_blob_host] = "https://#{Environment.url_for azure_credentials[:storage_account_name], azure_credentials[:region]}" if azure_credentials[:region]
+
+          ::Azure::Storage::Client.create config
         end
-
-        config[:storage_blob_host] = "https://#{azure_base_url}"
-
-        @azure_storage_client ||= ::Azure::Storage::Client.create config
       end
 
       def obtain_azure_instance_for(options)
@@ -154,7 +154,8 @@ module Paperclip
       end
 
       def azure_uri(style_name = default_style)
-        "https://#{azure_base_url}/#{container_name}/#{path(style_name).gsub(%r{\A/}, '')}"
+        uri = URI "#{container_name}/#{path(style_name).gsub(%r{\A/}, '')}"
+        azure_interface.generate_uri uri.path, CGI::parse(uri.query || "")
       end
 
       def azure_base_url

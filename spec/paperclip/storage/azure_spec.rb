@@ -109,8 +109,8 @@ describe Paperclip::Storage::Azure do
                     container: "container",
                     path: ":attachment/:basename:dotextension",
                     azure_credentials: {
-                      'access_key_id' => "12345",
-                      'secret_access_key' => "54321"
+                      storage_account_name: 'storage',
+                      storage_access_key: storage_access_key
                     }
 
         File.open(fixture_file('5k.png'), 'rb') do |file|
@@ -136,7 +136,8 @@ describe Paperclip::Storage::Azure do
                     styles: { large: ["500x500#", :jpg] },
                     container: "container",
                     azure_credentials: {
-                      "storage_access_key" => "54321"
+                      storage_account_name: 'storage',
+                      storage_access_key: storage_access_key
                     }
 
       File.open(fixture_file("spaced file.png"), "rb") do |file|
@@ -162,17 +163,16 @@ describe Paperclip::Storage::Azure do
                     styles: { large: ['500x500#', :jpg] },
                     container: "container",
                     azure_credentials: {
-                      'storage_access_key' => "54321"
+                      storage_account_name: 'storage',
+                      storage_access_key: storage_access_key
                     }
 
-      stringio = stringy_file
-      class << stringio
+      file = stringy_file
+      class << file
         def original_filename
           "question?mark.png"
         end
       end
-
-      file = Paperclip.io_adapters.for(stringio)
 
       @dummy = Dummy.new
       @dummy.avatar = file
