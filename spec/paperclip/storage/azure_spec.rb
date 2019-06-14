@@ -1,5 +1,6 @@
 require 'spec_helper'
 require "base64"
+require "pry"
 
 describe Paperclip::Storage::Azure do
   let(:storage_access_key) { 'kiaY4+GkLMVxnfOK2X+eCJOE06J8QtHC6XNuXVwt8Pp4kMezYaa7cNjtYnZr4/b732RKdz5pZwl8RN9yb8gBCg==' }
@@ -175,6 +176,7 @@ describe Paperclip::Storage::Azure do
       file = Paperclip.io_adapters.for(stringio)
 
       @dummy = Dummy.new
+
       @dummy.avatar = file
       @dummy.save
 
