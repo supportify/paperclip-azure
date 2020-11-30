@@ -1,4 +1,3 @@
-require 'azure/storage'
 require 'paperclip/storage/azure/environment'
 
 module Paperclip
@@ -6,6 +5,8 @@ module Paperclip
     # Azure's container file hosting service is a scalable, easy place to store files for
     # distribution. You can find out more about it at http://azure.microsoft.com/en-us/services/storage/
     #
+    # To use Paperclip with Azure, include the +azure-storage-blob+ gem in your Gemfile:
+    #   gem 'azure-storage-blob'
     # There are a few Azure-specific options for has_attached_file:
     # * +azure_credentials+: Takes a path, a File, a Hash or a Proc. The path (or File) must point
     #   to a YAML file containing the +storage_access_key+ and +storage_account_name+ that azure
@@ -55,9 +56,9 @@ module Paperclip
     module Azure
       def self.extended base
         begin
-          require 'azure'
+          require 'azure/storage/blob/blob_service'
         rescue LoadError => e
-          e.message << " (You may need to install the azure SDK gem)"
+          e.message << " (You may need to install the azure-storage-blob gem)"
           raise e
         end unless defined?(::Azure::Core)
 
@@ -83,15 +84,12 @@ module Paperclip
 
       def expiring_url(time = 3600, style_name = default_style)
         if path(style_name)
-          uri = URI azure_uri(style_name)
-          generator = ::Azure::Storage::Core::Auth::SharedAccessSignature.new azure_account_name,
-                                                                              azure_credentials[:storage_access_key]
-
-          generator.signed_uri uri, false, service:      'b',
-                                           resource:     'b',
-                                           permissions:  'r',
-                                           start:        (Time.now - (5 * 60)).utc.iso8601,
-                                           expiry:       (Time.now + time).utc.iso8601
+          signer = ::Azure::Core::Auth::SharedAccessSignature.new(
+            azure_account_name,
+            azure_credentials[:storage_access_key]
+          )
+          obj_path = path(style_name).gsub(%r{\A/}, '')
+          "#{azure_uri}?#{signer.generate_token(container_name, obj_path, 'r', time)}"
         else
           url(style_name)
         end
@@ -131,23 +129,16 @@ module Paperclip
         end
       end
 
-      def azure_storage_client
-        config = {}
-
-        [:storage_account_name, :storage_access_key].each do |opt|
-          config[opt] = azure_credentials[opt] if azure_credentials[opt]
-        end
-
-        @azure_storage_client ||= ::Azure::Storage::Client.create config
-      end
-
       def obtain_azure_instance_for(options)
         instances = (Thread.current[:paperclip_azure_instances] ||= {})
         return instances[options] if instance[options]
 
-        service = ::Azure::Storage::Blob::BlobService.new(client: azure_storage_client)
-        service.with_filter ::Azure::Storage::Core::Filter::ExponentialRetryPolicyFilter.new
-
+        if options[:use_development_storage]
+          service = ::Azure::Storage::Blob::BlobService.create(use_development_storage: true)
+        else
+          service = ::Azure::Storage::Blob::BlobService.create(storage_account_name: options[:storage_account_name],
+                                                               storage_access_key: options[:storage_access_key])
+        end
         instances[options] = service
       end
 
@@ -229,7 +220,7 @@ module Paperclip
           while data = file.read(4.megabytes)
             block_id = "block_#{(count += 1).to_s.rjust(5, '0')}"
 
-            azure_interface.create_blob_block container_name, storage_path, block_id, data
+            azure_interface.put_blob_block container_name, storage_path, block_id, data
 
             blocks << [block_id]
           end
