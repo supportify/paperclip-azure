@@ -14,7 +14,7 @@ Hoe.spec "paperclip-azure" do
   license "MIT" # this should match the license in the README
 
   extra_deps << ['azure-storage-blob', '~> 2.0.1']
-  extra_deps << ['hashie', '~> 3.5']
+  extra_deps << ['hashie']
   extra_deps << ['addressable', '~> 2.5']
 
   extra_dev_deps << ['paperclip', '>= 4.3.6']
