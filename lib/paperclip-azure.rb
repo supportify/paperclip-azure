@@ -15,7 +15,7 @@ module Azure
           @version = '2020-02-10'
           @account = account
           @access_key = access_key
-          @resource_type = 'b'
+          @resource_type = 'c'
         end
 
         def generate_token(container, key, permission='r', timeout=900, content_disposition='')
