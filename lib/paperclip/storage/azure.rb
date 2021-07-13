@@ -89,7 +89,7 @@ module Paperclip
             azure_credentials[:storage_access_key]
           )
           obj_path = path(style_name).gsub(%r{\A/}, '')
-          "#{azure_uri}?#{signer.generate_token(container_name, obj_path, 'r', time)}"
+          "#{azure_uri(style_name)}?#{signer.generate_token(container_name, obj_path, 'r', time)}"
         else
           url(style_name)
         end
