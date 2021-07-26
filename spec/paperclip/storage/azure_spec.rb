@@ -245,8 +245,8 @@ describe Paperclip::Storage::Azure do
         @dummy.avatar = stringy_file
       end
 
-      allow(::Azure::Storage::Core::Auth::SharedAccessSignature).to receive(:new).and_call_original
-      allow(::Azure::Storage::Core::Auth::SharedAccessSignatureSigner).to receive(:new).and_call_original
+      allow(::Azure::Storage::Core::Common::Auth::SharedAccessSignature).to receive(:new).and_call_original
+      allow(::Azure::Storage::Core::Common::Auth::SharedAccessSignatureSigner).to receive(:new).and_call_original
     end
 
     it "generates a url for the thumb" do

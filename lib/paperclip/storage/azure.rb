@@ -1,4 +1,4 @@
-require 'azure/storage'
+require 'azure/storage/blob'
 require 'paperclip/storage/azure/environment'
 
 module Paperclip
@@ -55,9 +55,9 @@ module Paperclip
     module Azure
       def self.extended base
         begin
-          require 'azure'
+          require 'azure/storage/blob'
         rescue LoadError => e
-          e.message << " (You may need to install the azure SDK gem)"
+          e.message << " (You may need to install the azure-storage-blob)"
           raise e
         end unless defined?(::Azure::Core)
 
@@ -84,7 +84,7 @@ module Paperclip
       def expiring_url(time = 3600, style_name = default_style)
         if path(style_name)
           uri = URI azure_uri(style_name)
-          generator = ::Azure::Storage::Core::Auth::SharedAccessSignature.new azure_account_name,
+          generator = ::Azure::Storage::Common::Core::Auth::SharedAccessSignature.new azure_account_name,
                                                                               azure_credentials[:storage_access_key]
 
           generator.signed_uri uri, false, service:      'b',
@@ -138,7 +138,7 @@ module Paperclip
           config[opt] = azure_credentials[opt] if azure_credentials[opt]
         end
 
-        @azure_storage_client ||= ::Azure::Storage::Client.create config
+        @azure_storage_client ||= ::Azure::Storage::Blob::BlobService.create config
       end
 
       def obtain_azure_instance_for(options)
