@@ -188,8 +188,8 @@ module Paperclip
             log("saving #{path(style)}")
 
             write_options = {
-              content_type: file.content_type,
-            }
+              content_type: file.content_type
+            }.merge(@options.fetch(:azure_headers, {}))
 
             if azure_container
               save_blob container_name, path(style).sub(%r{\A/},''), file, write_options
@@ -197,7 +197,8 @@ module Paperclip
           rescue ::Azure::Core::Http::HTTPError => e
             if e.status_code == 404
               create_container
-              retry
+              retries += 1
+              retry unless retries >= 3
             else
               raise
             end
@@ -245,7 +246,7 @@ module Paperclip
       def copy_to_local_file(style, local_dest_path)
         log("copying #{path(style)} to local file #{local_dest_path}")
 
-        blob, content = azure_interface.get_blob(container_name, path(style).sub(%r{\A/},''))
+        _blob, content = azure_interface.get_blob(container_name, path(style).sub(%r{\A/},''))
 
         ::File.open(local_dest_path, 'wb') do |local_file|
           local_file.write(content)
