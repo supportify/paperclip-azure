@@ -1,3 +1,4 @@
+require 'azure/storage/core/auth/shared_access_signature'
 require 'paperclip/storage/azure/environment'
 
 module Paperclip

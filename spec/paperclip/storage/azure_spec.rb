@@ -251,20 +251,24 @@ describe Paperclip::Storage::Azure do
 
     it "generates a url for the thumb" do
       rails_env("production") do
-        expect { @dummy.avatar.expiring_url(1800, :thumb) }.not_to raise_error
+        expect do
+          expect(::Azure::Core::Auth::SharedAccessSignature).
+            to receive(:new).with('prod_storage', anything).and_call_original
+          @dummy.avatar.expiring_url(1800, :thumb)
+        end.not_to raise_error
       end
-
-      expect(::Azure::Storage::Core::Auth::SharedAccessSignature).to have_received(:new)
-        .with('prod_storage', anything)
     end
 
     it "generates a url for the default style" do
       rails_env("production") do
-        expect { @dummy.avatar.expiring_url(1800) }.not_to raise_error
+        expect do
+          expect(::Azure::Core::Auth::SharedAccessSignature).
+            to receive(:new).with('prod_storage', anything).and_call_original
+          @dummy.avatar.expiring_url(1800)
+        end.not_to raise_error
       end
 
-      expect(::Azure::Storage::Core::Auth::SharedAccessSignature).to have_received(:new)
-        .with('prod_storage', anything)
+
     end
   end
 
