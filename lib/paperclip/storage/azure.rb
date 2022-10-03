@@ -54,42 +54,51 @@ module Paperclip
     # * +region+: Depending on the region, different base urls are used. Supported values :global, :de
 
     module Azure
-      def self.extended base
-        begin
-          require 'azure/storage/blob/blob_service'
-        rescue LoadError => e
-          e.message << " (You may need to install the azure-storage-blob gem)"
-          raise e
-        end unless defined?(::Azure::Core)
+      def self.extended(base)
+        unless defined?(::Azure::Core)
+          begin
+            require 'azure'
+          rescue LoadError => e
+            e.message << ' (You may need to install the azure SDK gem)'
+            raise e
+          end
+        end
 
         base.instance_eval do
-          @azure_options     = @options[:azure_options]     || {}
+          @azure_options = @options[:azure_options] || {}
 
-          unless @options[:url].to_s.match(/\A:azure.*url\z/) || @options[:url] == ":asset_host".freeze
-            @options[:path] = path_option.gsub(/:url/, @options[:url]).sub(/\A:rails_root\/public\/system/, "".freeze)
-            @options[:url]  = ":azure_path_url".freeze
+          unless @options[:url].to_s.match(/\A:azure.*url\z/) || @options[:url] == ':asset_host'
+            @options[:path] = path_option.gsub(/:url/, @options[:url]).sub(%r{\A:rails_root/public/system}, '')
+            @options[:url]  = ':azure_path_url'
           end
           @options[:url] = @options[:url].inspect if @options[:url].is_a?(Symbol)
 
           @http_proxy = @options[:http_proxy] || nil
         end
 
-        Paperclip.interpolates(:azure_path_url) do |attachment, style|
-          attachment.azure_uri(style)
-        end unless Paperclip::Interpolations.respond_to? :azure_path_url
-        Paperclip.interpolates(:asset_host) do |attachment, style|
-          "#{attachment.path(style).sub(%r{\A/}, "".freeze)}"
-        end unless Paperclip::Interpolations.respond_to? :asset_host
+        unless Paperclip::Interpolations.respond_to? :azure_path_url
+          Paperclip.interpolates(:azure_path_url) do |attachment, style|
+            attachment.azure_uri(style)
+          end
+        end
+        unless Paperclip::Interpolations.respond_to? :asset_host
+          Paperclip.interpolates(:asset_host) do |attachment, style|
+            attachment.path(style).sub(%r{\A/}, '').to_s
+          end
+        end
       end
 
       def expiring_url(time = 3600, style_name = default_style)
         if path(style_name)
-          signer = ::Azure::Core::Auth::SharedAccessSignature.new(
-            azure_account_name,
-            azure_credentials[:storage_access_key]
-          )
-          obj_path = path(style_name).gsub(%r{\A/}, '')
-          "#{azure_uri(style_name)}?#{signer.generate_token(container_name, obj_path, 'r', time)}"
+          uri = URI azure_uri(style_name)
+          generator = ::Azure::Storage::Core::Auth::SharedAccessSignature.new azure_account_name,
+                                                                              azure_credentials[:storage_access_key]
+
+          generator.signed_uri uri, false, service: 'b',
+                                           resource: 'b',
+                                           permissions: 'r',
+                                           start: (Time.now - (5 * 60)).utc.iso8601,
+                                           expiry: (Time.now + time).utc.iso8601
         else
           url(style_name)
         end
@@ -114,19 +123,29 @@ module Paperclip
       def container_name
         @container ||= @options[:container] || azure_credentials[:container]
         @container = @container.call(self) if @container.respond_to?(:call)
-        @container or raise ArgumentError, "missing required :container option"
+        @container || raise(ArgumentError, 'missing required :container option')
       end
 
       def azure_interface
         @azure_interface ||= begin
           config = {}
 
-          [:storage_account_name, :storage_access_key, :container].each do |opt|
+          %i[storage_account_name storage_access_key container].each do |opt|
             config[opt] = azure_credentials[opt] if azure_credentials[opt]
           end
 
           obtain_azure_instance_for(config.merge(@azure_options))
         end
+      end
+
+      def azure_storage_client
+        config = {}
+
+        %i[storage_account_name storage_access_key].each do |opt|
+          config[opt] = azure_credentials[opt] if azure_credentials[opt]
+        end
+
+        @azure_storage_client ||= ::Azure::Storage::Client.create config
       end
 
       def obtain_azure_instance_for(options)
@@ -143,7 +162,7 @@ module Paperclip
       end
 
       def azure_uri(style_name = default_style)
-        "https://#{azure_base_url}/#{container_name}/#{path(style_name).gsub(%r{\A/}, '')}"
+        azure_storage_client.blob_client.generate_uri("#{container_name}/#{path(style_name).gsub(%r{\A/}, '')}")
       end
 
       def azure_base_url
@@ -155,7 +174,7 @@ module Paperclip
       end
 
       def azure_object(style_name = default_style)
-        azure_interface.get_blob_properties container_name, path(style_name).sub(%r{\A/},'')
+        azure_interface.get_blob_properties container_name, path(style_name).sub(%r{\A/}, '')
       end
 
       def parse_credentials(creds)
@@ -183,27 +202,24 @@ module Paperclip
 
       def flush_writes #:nodoc:
         @queued_for_write.each do |style, file|
-          retries = 0
-          begin
-            log("saving #{path(style)}")
+          log("saving #{path(style)}")
 
-            write_options = {
-              content_type: file.content_type,
-            }
+          write_options = {
+            content_type: file.content_type
+          }
 
-            if azure_container
-              save_blob container_name, path(style).sub(%r{\A/},''), file, write_options
-            end
-          rescue ::Azure::Core::Http::HTTPError => e
-            if e.status_code == 404
-              create_container
-              retry
-            else
-              raise
-            end
-          ensure
-            file.rewind
+          if azure_container
+            save_blob container_name, path(style).sub(%r{\A/}, ''), file, write_options
           end
+        rescue ::Azure::Core::Http::HTTPError => e
+          if e.status_code == 404
+            create_container
+            retry
+          else
+            raise
+          end
+        ensure
+          file.rewind
         end
 
         after_flush_writes # allows attachment to clean up temp files
@@ -212,7 +228,6 @@ module Paperclip
       end
 
       def save_blob(container_name, storage_path, file, write_options)
-
         if file.size < 64.megabytes
           azure_interface.create_block_blob container_name, storage_path, file.read, write_options
         else
@@ -231,13 +246,11 @@ module Paperclip
 
       def flush_deletes #:nodoc:
         @queued_for_delete.each do |path|
-          begin
-            log("deleting #{path}")
+          log("deleting #{path}")
 
-            azure_interface.delete_blob container_name, path
-          rescue ::Azure::Core::Http::HTTPError => e
-            raise unless e.status_code == 404
-          end
+          azure_interface.delete_blob container_name, path
+        rescue ::Azure::Core::Http::HTTPError => e
+          raise unless e.status_code == 404
         end
         @queued_for_delete = []
       end
@@ -245,7 +258,7 @@ module Paperclip
       def copy_to_local_file(style, local_dest_path)
         log("copying #{path(style)} to local file #{local_dest_path}")
 
-        blob, content = azure_interface.get_blob(container_name, path(style).sub(%r{\A/},''))
+        _, content = azure_interface.get_blob(container_name, path(style).sub(%r{\A/}, ''))
 
         ::File.open(local_dest_path, 'wb') do |local_file|
           local_file.write(content)
@@ -259,18 +272,18 @@ module Paperclip
 
       private
 
-      def find_credentials creds
+      def find_credentials(creds)
         case creds
         when File
-          YAML::load(ERB.new(File.read(creds.path)).result)
+          YAML.safe_load(ERB.new(File.read(creds.path)).result)
         when String, Pathname
-          YAML::load(ERB.new(File.read(creds)).result)
+          YAML.safe_load(ERB.new(File.read(creds)).result)
         when Hash
           creds
         when NilClass
           {}
         else
-          raise ArgumentError, "Credentials given are not a path, file, proc, or hash."
+          raise ArgumentError, 'Credentials given are not a path, file, proc, or hash.'
         end
       end
     end
