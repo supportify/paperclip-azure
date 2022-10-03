@@ -1,0 +1,29 @@
+AllCops:
+  TargetRubyVersion: 2.3
+  Exclude:
+    - spec/**/*
+
+Metrics:
+  Exclude:
+    - lib/paperclip/storage/azure.rb
+Style/StringLiterals:
+  Enabled: true
+  EnforcedStyle: double_quotes
+Style/GuardClause:
+  Enabled: false
+Style/FrozenStringLiteralComment:
+  Enabled: true
+  EnforcedStyle: never
+Style/Documentation:
+  Enabled: false
+Layout/LineLength:
+  Max: 101
+Metrics/MethodLength:
+  Max: 20
+Metrics/AbcSize:
+  Max: 20
+Layout/DotPosition:
+  EnforcedStyle: trailing
+  Enabled: true
+Naming/FileName:
+  Enabled: false

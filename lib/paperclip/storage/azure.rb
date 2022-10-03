@@ -1,5 +1,5 @@
-require 'azure/storage/core/auth/shared_access_signature'
-require 'paperclip/storage/azure/environment'
+require "azure/storage/core/auth/shared_access_signature"
+require "paperclip/storage/azure/environment"
 
 module Paperclip
   module Storage
@@ -52,22 +52,26 @@ module Paperclip
     #   to interpolate. Keys should be unique, like filenames, and despite the fact that
     #   Azure (strictly speaking) does not support directories, you can still use a / to
     #   separate parts of your file name.
-    # * +region+: Depending on the region, different base urls are used. Supported values :global, :de
+    # * +region+: Depending on the region, different base urls are used.
+    #   Supported values :global, :de
 
     module Azure
-      def self.extended base
-        begin
-          require 'azure/storage/blob/blob_service'
-        rescue LoadError => e
-          e.message << " (You may need to install the azure-storage-blob gem)"
-          raise e
-        end unless defined?(::Azure::Core)
+      def self.extended(base)
+        unless defined?(::Azure::Core)
+          begin
+            require "azure/storage/blob/blob_service"
+          rescue LoadError => e
+            e.message << " (You may need to install the azure-storage-blob gem)"
+            raise e
+          end
+        end
 
         base.instance_eval do
-          @azure_options     = @options[:azure_options]     || {}
+          @azure_options = @options[:azure_options] || {}
 
-          unless @options[:url].to_s.match(/\A:azure.*url\z/) || @options[:url] == ":asset_host".freeze
-            @options[:path] = path_option.gsub(/:url/, @options[:url]).sub(/\A:rails_root\/public\/system/, "".freeze)
+          unless @options[:url].to_s.match(/\A:azure.*url\z/) || @options[:url] == ":asset_host"
+            @options[:path] = path_option.gsub(/:url/, @options[:url]).
+                              sub(%r{\A:rails_root/public/system}, "".freeze)
             @options[:url]  = ":azure_path_url".freeze
           end
           @options[:url] = @options[:url].inspect if @options[:url].is_a?(Symbol)
@@ -75,12 +79,16 @@ module Paperclip
           @http_proxy = @options[:http_proxy] || nil
         end
 
-        Paperclip.interpolates(:azure_path_url) do |attachment, style|
-          attachment.azure_uri(style)
-        end unless Paperclip::Interpolations.respond_to? :azure_path_url
-        Paperclip.interpolates(:asset_host) do |attachment, style|
-          "#{attachment.path(style).sub(%r{\A/}, "".freeze)}"
-        end unless Paperclip::Interpolations.respond_to? :asset_host
+        unless Paperclip::Interpolations.respond_to? :azure_path_url
+          Paperclip.interpolates(:azure_path_url) do |attachment, style|
+            attachment.azure_uri(style)
+          end
+        end
+        unless Paperclip::Interpolations.respond_to? :asset_host
+          Paperclip.interpolates(:asset_host) do |attachment, style|
+            attachment.path(style).sub(%r{\A/}, "".freeze).to_s
+          end
+        end
       end
 
       def expiring_url(time = 3600, style_name = default_style)
@@ -89,7 +97,7 @@ module Paperclip
             azure_account_name,
             azure_credentials[:storage_access_key]
           )
-          obj_path = path(style_name).gsub(%r{\A/}, '')
+          obj_path = path(style_name).gsub(%r{\A/}, "")
           "#{azure_uri}?#{signer.generate_token(container_name, obj_path, 'r', time)}"
         else
           url(style_name)
@@ -97,7 +105,10 @@ module Paperclip
       end
 
       def auto_connect_duration
-        @auto_connect_duration ||= @options[:auto_connect_duration] || azure_credentials[:auto_connect_duration] || 10
+        @auto_connect_duration ||= begin
+          @options[:auto_connect_duration] ||
+            azure_credentials[:auto_connect_duration] || 10
+        end
         @auto_connect_duration
       end
 
@@ -106,7 +117,10 @@ module Paperclip
       end
 
       def azure_account_name
-        account_name = @options[:azure_storage_account_name] || azure_credentials[:storage_account_name]
+        account_name = (
+          @options[:azure_storage_account_name] ||
+            azure_credentials[:storage_account_name]
+        )
         account_name = account_name.call(self) if account_name.is_a?(Proc)
 
         account_name
@@ -115,14 +129,14 @@ module Paperclip
       def container_name
         @container ||= @options[:container] || azure_credentials[:container]
         @container = @container.call(self) if @container.respond_to?(:call)
-        @container or raise ArgumentError, "missing required :container option"
+        @container || raise(ArgumentError, "missing required :container option")
       end
 
       def azure_interface
         @azure_interface ||= begin
           config = {}
 
-          [:storage_account_name, :storage_access_key, :container].each do |opt|
+          %i[storage_account_name storage_access_key container].each do |opt|
             config[opt] = azure_credentials[opt] if azure_credentials[opt]
           end
 
@@ -134,12 +148,14 @@ module Paperclip
         instances = (Thread.current[:paperclip_azure_instances] ||= {})
         return instances[options] if instance[options]
 
-        if options[:use_development_storage]
-          service = ::Azure::Storage::Blob::BlobService.create(use_development_storage: true)
-        else
-          service = ::Azure::Storage::Blob::BlobService.create(storage_account_name: options[:storage_account_name],
-                                                               storage_access_key: options[:storage_access_key])
-        end
+        service = if options[:use_development_storage]
+                    ::Azure::Storage::Blob::BlobService.create(use_development_storage: true)
+                  else
+                    ::Azure::Storage::Blob::BlobService.create(
+                      storage_account_name: options[:storage_account_name],
+                      storage_access_key: options[:storage_access_key]
+                    )
+                  end
         instances[options] = service
       end
 
@@ -156,11 +172,11 @@ module Paperclip
       end
 
       def azure_object(style_name = default_style)
-        azure_interface.get_blob_properties container_name, path(style_name).sub(%r{\A/},'')
+        azure_interface.get_blob_properties container_name, path(style_name).sub(%r{\A/}, "")
       end
 
       def parse_credentials(creds)
-        creds = creds.respond_to?('call') ? creds.call(self) : creds
+        creds = creds.respond_to?("call") ? creds.call(self) : creds
         creds = find_credentials(creds).stringify_keys
         env = Object.const_defined?(:Rails) ? Rails.env : nil
         (creds[env] || creds).symbolize_keys
@@ -184,24 +200,21 @@ module Paperclip
 
       def flush_writes #:nodoc:
         @queued_for_write.each do |style, file|
-          retries = 0
           begin
             log("saving #{path(style)}")
 
             write_options = {
-              content_type: file.content_type,
+              content_type: file.content_type
             }
 
             if azure_container
-              save_blob container_name, path(style).sub(%r{\A/},''), file, write_options
+              save_blob container_name, path(style).sub(%r{\A/}, ""), file, write_options
             end
           rescue ::Azure::Core::Http::HTTPError => e
-            if e.status_code == 404
-              create_container
-              retry
-            else
-              raise
-            end
+            raise if e.status_code != 404
+
+            create_container
+            retry
           ensure
             file.rewind
           end
@@ -213,13 +226,12 @@ module Paperclip
       end
 
       def save_blob(container_name, storage_path, file, write_options)
-
         if file.size < 64.megabytes
           azure_interface.create_block_blob container_name, storage_path, file.read, write_options
         else
-          blocks = []; count = 0
-          while data = file.read(4.megabytes)
-            block_id = "block_#{(count += 1).to_s.rjust(5, '0')}"
+          blocks = []
+          while (data = file.read(32.megabytes)).present?
+            block_id = "block_#{(blocks.size + 1).to_s.rjust(5, '0')}"
 
             azure_interface.put_blob_block container_name, storage_path, block_id, data
 
@@ -246,9 +258,10 @@ module Paperclip
       def copy_to_local_file(style, local_dest_path)
         log("copying #{path(style)} to local file #{local_dest_path}")
 
-        blob, content = azure_interface.get_blob(container_name, path(style).sub(%r{\A/},''))
+        _blob, content = azure_interface.
+                         get_blob(container_name, path(style).sub(%r{\A/}, ""))
 
-        ::File.open(local_dest_path, 'wb') do |local_file|
+        ::File.open(local_dest_path, "wb") do |local_file|
           local_file.write(content)
         end
       rescue ::Azure::Core::Http::HTTPError => e
@@ -260,12 +273,12 @@ module Paperclip
 
       private
 
-      def find_credentials creds
+      def find_credentials(creds)
         case creds
         when File
-          YAML::load(ERB.new(File.read(creds.path)).result)
+          YAML.safe_load(ERB.new(File.read(creds.path)).result)
         when String, Pathname
-          YAML::load(ERB.new(File.read(creds)).result)
+          YAML.safe_load(ERB.new(File.read(creds)).result)
         when Hash
           creds
         when NilClass
